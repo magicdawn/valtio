@@ -285,10 +285,12 @@ describe('delete', () => {
 
       const TestComponent = () => {
         const snap = useSnapshot(state)
+        const has = snap.set.has(valueToDelete)
 
         return (
           <>
             <div>size: {snap.set.size}</div>
+            <div>has: {has.toString()}</div>
             <button onClick={() => state.set.delete(valueToDelete)}>
               button
             </button>
@@ -303,6 +305,7 @@ describe('delete', () => {
       )
 
       getByText(`size: ${state.set.size}`)
+      getByText('has: true')
 
       const expectedSizeAfterDelete =
         state.set.size > 1 ? state.set.size - 1 : 0
@@ -310,6 +313,7 @@ describe('delete', () => {
       fireEvent.click(getByText('button'))
       await waitFor(() => {
         getByText(`size: ${expectedSizeAfterDelete}`)
+        getByText('has: false')
       })
     })
   })
@@ -320,6 +324,51 @@ describe('delete', () => {
 
       expect(set.delete(value)).toBe(false)
     })
+  })
+})
+
+describe('has', () => {
+  it('should support has with add/delete/clear', async () => {
+    const state = proxy({ set: proxySet<string>() })
+    const val = 'hello'
+
+    const TestComponent = () => {
+      const set = useSnapshot(state.set)
+      // size accessor has special logic, do not access `.size` here
+      // const size = set.size
+      const has = set.has(val).toString()
+      return (
+        <>
+          <div>has: {has}</div>
+          <button onClick={() => state.set.add(val)}>add</button>
+          <button onClick={() => state.set.delete(val)}>delete</button>
+          <button onClick={() => state.set.clear()}>clear</button>
+        </>
+      )
+    }
+
+    const { getByText } = render(
+      <StrictMode>
+        <TestComponent />
+      </StrictMode>,
+    )
+
+    const clickAdd = () => fireEvent.click(getByText('add'))
+    const clickDelete = () => fireEvent.click(getByText('delete'))
+    const clickClear = () => fireEvent.click(getByText('clear'))
+    const expectHasToBe = (v: boolean) => getByText(`has: ${v.toString()}`)
+
+    expectHasToBe(false)
+
+    clickAdd()
+    await waitFor(() => expectHasToBe(true))
+    clickDelete()
+    await waitFor(() => expectHasToBe(false))
+
+    clickAdd()
+    await waitFor(() => expectHasToBe(true))
+    clickClear()
+    await waitFor(() => expectHasToBe(false))
   })
 })
 
